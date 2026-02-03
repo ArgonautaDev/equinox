@@ -3,6 +3,7 @@
 //! All commands exposed to the frontend are organized here.
 
 pub mod auth;
+pub mod cash_register;
 pub mod categories;
 pub mod clients;
 pub mod discounts;

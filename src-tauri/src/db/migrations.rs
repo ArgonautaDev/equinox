@@ -385,6 +385,12 @@ pub fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
         conn.execute("INSERT INTO schema_migrations (version) VALUES (8)", [])?;
     }
 
+    // Migration 9: Multi-Currency Cash Registers
+    if current_version < 9 {
+        conn.execute_batch(include_str!("migrations/007_cash_registers.sql"))?;
+        conn.execute("INSERT INTO schema_migrations (version) VALUES (9)", [])?;
+    }
+
     Ok(())
 }
 

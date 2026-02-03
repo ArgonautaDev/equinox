@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, DollarSign, Trash2, History, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useCashRegister } from "@/modules/cash-register/CashRegisterProvider";
 
 interface PaymentModalProps {
   invoice: Invoice | null;
@@ -33,6 +34,7 @@ interface PaymentModalProps {
 
 export function PaymentModal({ invoice, open, onClose }: PaymentModalProps) {
   const queryClient = useQueryClient();
+  const { session } = useCashRegister(); // Add this
   const [activeTab, setActiveTab] = useState("new");
   const [amount, setAmount] = useState("");
   const [receivedAmount, setReceivedAmount] = useState(""); // New state for bank currency amount
@@ -282,12 +284,19 @@ export function PaymentModal({ invoice, open, onClose }: PaymentModalProps) {
                   className="h-20"
                 />
               </div>
+              
+              {!session && (
+                  <div className="flex items-center gap-2 p-3 text-sm font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400 rounded-md border border-amber-200 dark:border-amber-800">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    <span>Debe abrir una caja registradora para procesar pagos.</span>
+                  </div>
+              )}
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={mutation.isPending}>
+                <Button type="submit" disabled={mutation.isPending || !session}>
                   {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   Registrar Pago
                 </Button>

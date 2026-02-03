@@ -13,6 +13,7 @@ import { LoginPage } from "@/modules/auth"; // SetupPage removed from auth
 import { SetupWizard } from "@/modules/setup";
 import { useAppStore } from "@/lib/store";
 import { auth } from "@/lib/tauri";
+import { CashRegisterProvider } from "@/modules/cash-register/CashRegisterProvider";
 
 import { LicenseGuard } from "@/components/auth/LicenseGuard";
 
@@ -107,17 +108,19 @@ function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <AppShell>
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/clients/*" element={<ClientsModule />} />
-                    <Route path="/invoices/*" element={<BillingModule />} />
-                    <Route path="/receivables/*" element={<ReceivablesModule />} />
-                    <Route path="/treasury" element={<TreasuryDashboard />} />
-                    <Route path="/inventory/*" element={<InventoryModule />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                  </Routes>
-                </AppShell>
+                <CashRegisterProvider>
+                  <AppShell>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/clients/*" element={<ClientsModule />} />
+                      <Route path="/invoices/*" element={<BillingModule />} />
+                      <Route path="/receivables/*" element={<ReceivablesModule />} />
+                      <Route path="/treasury" element={<TreasuryDashboard />} />
+                      <Route path="/inventory/*" element={<InventoryModule />} />
+                      <Route path="/settings" element={<SettingsPage />} />
+                    </Routes>
+                  </AppShell>
+                </CashRegisterProvider>
               </ProtectedRoute>
             }
           />

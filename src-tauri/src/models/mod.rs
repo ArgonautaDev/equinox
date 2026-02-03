@@ -1,6 +1,7 @@
 //! Data Models Module
 
 pub mod bank_account;
+pub mod cash_register;
 pub mod category;
 pub mod client;
 pub mod company_settings;

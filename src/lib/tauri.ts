@@ -815,21 +815,124 @@ export interface UpdateDiscountDto {
 // ============================================
 
 export const discounts = {
-  list: (activeOnly?: boolean) =>
-    invoke<Discount[]>("list_discounts", { activeOnly }),
-
+  list: () => invoke<Discount[]>("list_discounts"),
+  
   get: (id: string) => invoke<Discount>("get_discount", { id }),
-
-  create: (data: CreateDiscountDto) =>
+  
+  create: (data: CreateDiscountDto) => 
     invoke<Discount>("create_discount", { data }),
-
-  update: (id: string, data: UpdateDiscountDto) =>
+    
+  update: (id: string, data: UpdateDiscountDto) => 
     invoke<Discount>("update_discount", { id, data }),
-
+    
   delete: (id: string) => invoke<void>("delete_discount", { id }),
-
+  
   use: (id: string) => invoke<void>("use_discount", { id }),
 };
+
+// ============================================
+// CASH REGISTER TYPES
+// ============================================
+
+export interface CashRegister {
+  id: string;
+  tenant_id: string;
+  name: string;
+  status: 'closed' | 'open';
+  current_session_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashRegisterSession {
+  id: string;
+  tenant_id: string;
+  register_id: string;
+  user_id: string;
+  status: 'active' | 'closed';
+  start_time: string;
+  end_time?: string;
+  
+  opening_amount_usd: number;
+  opening_amount_ves: number;
+  opening_amount_eur: number;
+  opening_exchange_rate_ves: number;
+  opening_exchange_rate_eur: number;
+  opening_notes?: string;
+
+  closing_amount_usd?: number;
+  closing_amount_ves?: number;
+  closing_amount_eur?: number;
+  closing_notes?: string;
+
+  expected_amount_usd?: number;
+  expected_amount_ves?: number;
+  expected_amount_eur?: number;
+
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashMovement {
+  id: string;
+  tenant_id: string;
+  session_id: string;
+  user_id: string;
+  movement_type: 'deposit' | 'withdrawal';
+  amount: number;
+  currency: 'USD' | 'VES' | 'EUR';
+  exchange_rate: number;
+  reason?: string;
+  reference?: string;
+  created_at: string;
+}
+
+export interface OpenSessionDto {
+  register_id: string;
+  opening_amount_usd: number;
+  opening_amount_ves: number;
+  opening_amount_eur: number;
+  exchange_rate_ves: number;
+  exchange_rate_eur: number;
+  notes?: string;
+}
+
+export interface CloseSessionDto {
+  session_id: string;
+  closing_amount_usd: number;
+  closing_amount_ves: number;
+  closing_amount_eur: number;
+  notes?: string;
+}
+
+export interface AddMovementDto {
+  session_id: string;
+  movement_type: 'deposit' | 'withdrawal';
+  amount: number;
+  currency: 'USD' | 'VES' | 'EUR';
+  reason: string;
+  reference: string;
+}
+
+// ============================================
+// CASH REGISTER API
+// ============================================
+
+export const cashRegisters = {
+  create: (name: string) => invoke<CashRegister>("create_register", { name }),
+  
+  openSession: (data: OpenSessionDto) => invoke<CashRegisterSession>("open_session", { data }),
+  
+  closeSession: (data: CloseSessionDto) => invoke<CashRegisterSession>("close_session", { data }),
+  
+  addMovement: (data: AddMovementDto) => invoke<CashMovement>("add_movement", { data }),
+  
+  getActiveSession: () => invoke<CashRegisterSession | null>("get_active_session"),
+
+  list: () => invoke<CashRegister[]>("list_registers"),
+};
+
+
 
 // ============================================
 // INVOICES TYPES

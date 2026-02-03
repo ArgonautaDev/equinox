@@ -143,7 +143,15 @@ fn main() {
             commands::sync::check_cloud_updates,
             // Security
             commands::security::get_hardware_id,
+            commands::security::get_hardware_id,
             commands::security::verify_license_locally,
+            // Cash Register
+            commands::cash_register::create_register,
+            commands::cash_register::open_session,
+            commands::cash_register::close_session,
+            commands::cash_register::add_movement,
+            commands::cash_register::get_active_session,
+            commands::cash_register::list_registers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

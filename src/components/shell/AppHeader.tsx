@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppNotifications } from "./AppNotifications";
 import { AppUserProfile } from "./AppUserProfile";
+import { CashRegisterStatus } from "@/modules/cash-register/CashRegisterStatus";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -40,6 +41,9 @@ export function AppHeader({ onMenuClick }: HeaderProps) {
 
         {/* Right Section */}
         <div className="flex items-center gap-1 ml-auto">
+          {/* Cash Register Status */}
+          <CashRegisterStatus />
+
           {/* New Invoice Button */}
           <Link to="/invoices/new">
             <Button className="gap-2 transition-smooth h-9 text-sm font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-lg shadow-primary/20">

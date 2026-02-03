@@ -64,3 +64,30 @@ impl AppState {
             .ok_or_else(|| "Not authenticated".to_string())
     }
 }
+
+#[derive(Debug)]
+pub enum ServiceError {
+    Database(String),
+    Validation(String),
+    NotFound(String),
+    Unauthorized(String),
+}
+
+impl std::fmt::Display for ServiceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ServiceError::Database(msg) => write!(f, "Database Error: {}", msg),
+            ServiceError::Validation(msg) => write!(f, "Validation Error: {}", msg),
+            ServiceError::NotFound(msg) => write!(f, "Not Found: {}", msg),
+            ServiceError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for ServiceError {}
+
+impl ServiceError {
+    pub fn to_string(&self) -> String {
+        format!("{}", self)
+    }
+}
