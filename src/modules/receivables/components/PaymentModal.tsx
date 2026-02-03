@@ -232,9 +232,14 @@ export function PaymentModal({ invoice, open, onClose }: PaymentModalProps) {
 
               {/* Currency Conversion Logic */}
               {bankAccountId && bankAccounts && (
+              {/* Currency Conversion Logic */}
+              {bankAccountId && bankAccounts && (
                  (() => {
                     const selectedAccount = bankAccounts.find(a => a.id === bankAccountId);
                     if (selectedAccount && selectedAccount.currency !== invoice.currency) {
+                        // Calculate rate (Default from Invoice, but maybe should come from Session too?)
+                        const rate = invoice.exchange_rate; // Using invoice rate for now
+                        
                         return (
                             <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md space-y-3">
                                 <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
@@ -243,19 +248,36 @@ export function PaymentModal({ invoice, open, onClose }: PaymentModalProps) {
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-sm">
-                                        Monto Recibido en Banco ({selectedAccount.currency})
+                                        Monto Recibido ({selectedAccount.currency})
                                     </Label>
                                     <Input
                                         type="number"
                                         step="0.01"
                                         placeholder={`Monto en ${selectedAccount.currency}`}
                                         value={receivedAmount}
-                                        onChange={(e) => setReceivedAmount(e.target.value)}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setReceivedAmount(val);
+                                            // Auto-calculate the amount in Invoice Currency (USD)
+                                            if (val && parseFloat(val) > 0 && rate > 0) {
+                                                // Assuming rate is VES/USD (e.g. 50) and Invoice is USD
+                                                // If Invoice is USD and Bank is VES: AmountUSD = AmountVES / Rate
+                                                if (invoice.currency === "USD" && selectedAccount.currency === "VES") {
+                                                    const calculatedUSD = parseFloat(val) / rate;
+                                                    setAmount(calculatedUSD.toFixed(2));
+                                                }
+                                                // If Invoice is VES and Bank is USD: AmountVES = AmountUSD * Rate
+                                                else if (invoice.currency === "VES" && selectedAccount.currency === "USD") {
+                                                    const calculatedVES = parseFloat(val) * rate;
+                                                    setAmount(calculatedVES.toFixed(2));
+                                                }
+                                            }
+                                        }}
                                         className="bg-background"
                                     />
-                                    {receivedAmount && amount && parseFloat(amount) > 0 && (
+                                    {receivedAmount && (
                                         <p className="text-xs text-muted-foreground text-right">
-                                            Tasa Implícita: 1 {invoice.currency} = {(parseFloat(receivedAmount) / parseFloat(amount)).toFixed(4)} {selectedAccount.currency}
+                                            Tasa de Cambio (Factura): {rate} {selectedAccount.currency}/{invoice.currency}
                                         </p>
                                     )}
                                 </div>
@@ -264,6 +286,7 @@ export function PaymentModal({ invoice, open, onClose }: PaymentModalProps) {
                     }
                     return null;
                  })()
+              )}
               )}
 
               <div className="space-y-2">

@@ -35,6 +35,7 @@ import { useNavigate } from "react-router-dom";
 import { ProductSelector } from "./ProductSelector";
 import { InvoiceSummary } from "./components/InvoiceSummary";
 import { useInvoiceCalculation } from "./hooks/useInvoiceCalculation";
+import { useCashRegister } from "@/modules/cash-register/CashRegisterProvider";
 
 const invoiceSchema = z.object({
   client_id: z.string().min(1, "El cliente es requerido"),
@@ -145,15 +146,26 @@ export function InvoiceForm() {
 
   // const { dirtyFields } = form.formState;
 
+  const { session } = useCashRegister();
   const initializedCurrency = useRef(false);
 
   useEffect(() => {
+    // 1. Initialize Default Currency
     if (companySettings?.default_currency && !initializedCurrency.current) {
       console.log("Initializing default currency:", companySettings.default_currency);
       form.setValue("currency", companySettings.default_currency);
       initializedCurrency.current = true;
     }
-  }, [companySettings, form]);
+
+    // 2. Initialize Exchange Rate from Session if available
+    if (session) {
+       // Ideally we set this based on the currency selected, but let's default to VES rate if currency is not VES
+       // Or simply update the `exchange_rate` field which usually tracks VES/USD
+       if (session.opening_exchange_rate_ves > 0) {
+           form.setValue("exchange_rate", session.opening_exchange_rate_ves);
+       }
+    }
+  }, [companySettings, form, session]);
 
   useEffect(() => {
     if (!paymentTerms || !issueDate) return;

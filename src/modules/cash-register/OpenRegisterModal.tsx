@@ -17,15 +17,13 @@ import { useCashRegister } from "./CashRegisterProvider";
 import { OpenSessionDto } from "@/lib/tauri";
 
 export function OpenRegisterModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { openSession, isLoading: isContextLoading } = useCashRegister();
+  const { openSession } = useCashRegister();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadingRegisters, setLoadingRegisters] = useState(false);
   const [registers, setRegisters] = useState<{id: string, name: string}[]>([]);
 
   // Fetch registers on open
   useEffect(() => {
     if (isOpen) {
-        setLoadingRegisters(true);
         cashRegisters.list()
             .then(async (list) => {
                 if (list.length === 0) {
@@ -40,12 +38,11 @@ export function OpenRegisterModal({ isOpen, onClose }: { isOpen: boolean; onClos
                     setRegisters(list);
                 }
             })
-            .catch(e => console.error(e))
-            .finally(() => setLoadingRegisters(false));
+            .catch(e => console.error(e));
     }
   }, [isOpen]);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<OpenSessionDto>({
+  const { register, handleSubmit } = useForm<OpenSessionDto>({
     defaultValues: {
       opening_amount_usd: 0,
       opening_amount_ves: 0,
