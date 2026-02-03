@@ -1,4 +1,4 @@
-import { Cloud, CloudOff, RefreshCw, AlertCircle } from "lucide-react";
+import { Cloud, RefreshCw, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";

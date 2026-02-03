@@ -4,6 +4,7 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
 /// Calculate IVA (Venezuela VAT)
+#[allow(dead_code)]
 pub fn calculate_iva(subtotal: Decimal, rate: Decimal) -> Decimal {
     subtotal * rate / dec!(100)
 }
@@ -25,6 +26,7 @@ pub fn calculate_line_total(
 }
 
 /// Calculate invoice totals
+#[allow(dead_code)]
 pub fn calculate_invoice_totals(
     items: &[(Decimal, Decimal, Decimal)], // (subtotal, tax, total)
 ) -> (Decimal, Decimal, Decimal) {

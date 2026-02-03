@@ -18,6 +18,7 @@ pub struct ProductType {
 
 /// DTO for creating a product type
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct CreateProductTypeDto {
     pub code: String,
     pub name: String,

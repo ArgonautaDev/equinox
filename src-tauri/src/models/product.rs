@@ -87,6 +87,7 @@ pub struct ProductFilters {
 
 /// Response with product and related data
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 pub struct ProductWithDetails {
     #[serde(flatten)]
     pub product: Product,

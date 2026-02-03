@@ -11,6 +11,7 @@ pub struct SyncStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(dead_code)]
 pub enum SyncState {
     Synced,
     PendingUpload,
@@ -19,6 +20,7 @@ pub enum SyncState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[allow(dead_code)]
 pub struct SyncResult {
     pub uploaded: u32,
     pub downloaded: u32,
@@ -26,6 +28,7 @@ pub struct SyncResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ConflictResolution {
     pub table: String,
     pub local_id: String,

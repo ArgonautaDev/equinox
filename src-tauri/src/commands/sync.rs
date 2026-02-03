@@ -51,7 +51,7 @@ pub async fn check_cloud_updates(state: State<'_, AppState>) -> Result<i64, Stri
 pub async fn get_last_sync_status(
     state: State<'_, AppState>,
 ) -> Result<crate::models::sync::SyncStatus, String> {
-    let tenant_id = state.require_tenant().unwrap_or_default();
+    let _tenant_id = state.require_tenant().unwrap_or_default();
 
     // In a real app, query DB for pending items count
     // For now, return a basic status

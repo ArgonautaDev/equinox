@@ -13,6 +13,7 @@ pub mod price_history;
 pub mod price_lists;
 pub mod product_types;
 pub mod products;
+pub mod security;
 pub mod settings;
 pub mod setup;
 pub mod sync;

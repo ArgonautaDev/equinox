@@ -20,6 +20,7 @@ pub struct AppState {
     pub user_id: Arc<Mutex<Option<String>>>,
 
     /// Security manager for hardware fingerprinting
+    #[allow(dead_code)]
     pub security: SecurityManager,
 
     /// Supabase client for cloud sync

@@ -10,6 +10,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, Save, Loader2, Package } from "lucide-react";
 import { VariantManager } from "./VariantManager";
+import { PriceHistoryView } from "./components/PriceHistoryView";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   products,
   categories,
@@ -243,381 +245,399 @@ export function ProductForm() {
         </div>
       </div>
 
-      <Form {...form} key={product?.id || "new"}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {formError && (
-            <div className="p-4 text-sm text-destructive bg-destructive/10 rounded-lg">
-              {String(formError)}
-            </div>
-          )}
+      {/* Tabs Layout */}
+      <Tabs defaultValue="details" className="w-full">
+        {isEditing && (
+          <TabsList className="mb-4">
+            <TabsTrigger value="details">Detalles del Producto</TabsTrigger>
+            <TabsTrigger value="history">Historial de Precios</TabsTrigger>
+          </TabsList>
+        )}
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* Main Info */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Información General</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="sku"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>SKU</FormLabel>
-                        <FormControl>
-                          <Input placeholder="PRD-0001" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Dejarlo vacío para generar automáticamente
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="barcode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Código de Barras</FormLabel>
-                        <FormControl>
-                          <Input placeholder="7501234567890" {...field} />
-                        </FormControl>
-                        <FormDescription className="invisible">
-                           Espacio reservado para alineación
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+        <TabsContent value="details">
+          <Form {...form} key={product?.id || "new"}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {formError && (
+                <div className="p-4 text-sm text-destructive bg-destructive/10 rounded-lg">
+                  {String(formError)}
                 </div>
-
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre del Producto *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nombre del producto" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descripción</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Descripción detallada del producto..."
-                          rows={3}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <FormField
-                    control={form.control}
-                    name="category_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Categoría</FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          key={`category-${id || 'new'}-${field.value || 'empty'}`}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {categoriesData?.map((cat: Category) => (
-                              <SelectItem key={cat.id} value={cat.id}>
-                                {cat.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="unit_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Unidad</FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          key={`unit-${id || 'new'}-${field.value || 'empty'}`}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {unitsData?.map((unit: Unit) => (
-                              <SelectItem key={unit.id} value={unit.id}>
-                                {unit.name} ({unit.abbreviation})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="product_type_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo</FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          key={`type-${id || 'new'}-${field.value || 'empty'}`}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {productTypesData?.map((type: ProductType) => (
-                              <SelectItem key={type.id} value={type.id}>
-                                {type.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Pricing */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Precios</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="cost_price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Precio Costo</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" min="0" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="sale_price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Precio Venta</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" min="0" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Calculated Margins */}
-                <div className="p-3 bg-muted rounded-lg space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Margen $:</span>
-                    <span className="font-mono font-medium">
-                      ${margins.amount.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Margen %:</span>
-                    <span
-                      className={`font-mono font-medium ${
-                        margins.percent >= 30
-                          ? "text-green-600"
-                          : margins.percent >= 15
-                          ? "text-yellow-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {margins.percent.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="tax_rate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>IVA %</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.1" min="0" max="100" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Stock */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Inventario</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="min_stock"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Stock Mínimo</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="0" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="max_stock"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Stock Máximo</FormLabel>
-                        <FormControl>
-                          <Input type="number" min="0" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="supplier_reference"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ref. Proveedor</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Código proveedor" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Options */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Opciones</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-6">
-                  <FormField
-                    control={form.control}
-                    name="has_variants"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-2 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormLabel className="font-normal cursor-pointer">
-                          Tiene variantes (talla, color, etc.)
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="track_expiration"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-2 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormLabel className="font-normal cursor-pointer">
-                          Controlar fecha de vencimiento
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Variant Manager - only show if has_variants is true and editing */}
-            {hasVariants && isEditing && id && (
-              <Card className="lg:col-span-3">
-                <CardContent className="pt-6">
-                  <VariantManager productId={id} productName={product?.name || ""} />
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" asChild>
-              <Link to="/inventory/products">Cancelar</Link>
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
               )}
-              {isEditing ? "Guardar Cambios" : "Crear Producto"}
-            </Button>
-          </div>
-        </form>
-      </Form>
+
+              <div className="grid gap-6 lg:grid-cols-3">
+                {/* Main Info */}
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Información General</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="sku"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>SKU</FormLabel>
+                            <FormControl>
+                              <Input placeholder="PRD-0001" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              Dejarlo vacío para generar automáticamente
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="barcode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Código de Barras</FormLabel>
+                            <FormControl>
+                              <Input placeholder="7501234567890" {...field} />
+                            </FormControl>
+                            <FormDescription className="invisible">
+                              Espacio reservado para alineación
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre del Producto *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nombre del producto" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Descripción</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Descripción detallada del producto..."
+                              rows={3}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <FormField
+                        control={form.control}
+                        name="category_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Categoría</FormLabel>
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              key={`category-${id || 'new'}-${field.value || 'empty'}`}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {categoriesData?.map((cat: Category) => (
+                                  <SelectItem key={cat.id} value={cat.id}>
+                                    {cat.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="unit_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Unidad</FormLabel>
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              key={`unit-${id || 'new'}-${field.value || 'empty'}`}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {unitsData?.map((unit: Unit) => (
+                                  <SelectItem key={unit.id} value={unit.id}>
+                                    {unit.name} ({unit.abbreviation})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="product_type_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tipo</FormLabel>
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              key={`type-${id || 'new'}-${field.value || 'empty'}`}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {productTypesData?.map((type: ProductType) => (
+                                  <SelectItem key={type.id} value={type.id}>
+                                    {type.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Pricing */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Precios</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="cost_price"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Precio Costo</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" min="0" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="sale_price"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Precio Venta</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" min="0" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Calculated Margins */}
+                    <div className="p-3 bg-muted rounded-lg space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Margen $:</span>
+                        <span className="font-mono font-medium">
+                          ${margins.amount.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Margen %:</span>
+                        <span
+                          className={`font-mono font-medium ${
+                            margins.percent >= 30
+                              ? "text-green-600"
+                              : margins.percent >= 15
+                              ? "text-yellow-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {margins.percent.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="tax_rate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>IVA %</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.1" min="0" max="100" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Stock */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Inventario</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="min_stock"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Stock Mínimo</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="max_stock"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Stock Máximo</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="supplier_reference"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Ref. Proveedor</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Código proveedor" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Options */}
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Opciones</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-6">
+                      <FormField
+                        control={form.control}
+                        name="has_variants"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center gap-2 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal cursor-pointer">
+                              Tiene variantes (talla, color, etc.)
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="track_expiration"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center gap-2 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal cursor-pointer">
+                              Controlar fecha de vencimiento
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Variant Manager - only show if has_variants is true and editing */}
+                {hasVariants && isEditing && id && (
+                  <Card className="lg:col-span-3">
+                    <CardContent className="pt-6">
+                      <VariantManager productId={id} productName={product?.name || ""} />
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-4">
+                <Button type="button" variant="outline" asChild>
+                  <Link to="/inventory/products">Cancelar</Link>
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  {isEditing ? "Guardar Cambios" : "Crear Producto"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </TabsContent>
+
+        {isEditing && id && (
+            <TabsContent value="history">
+                <PriceHistoryView productId={id} />
+            </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }

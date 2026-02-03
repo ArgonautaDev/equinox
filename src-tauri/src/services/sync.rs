@@ -3,11 +3,10 @@
 //! Handles synchronization between local SQLite and Supabase.
 
 use crate::models::client::Client;
-use rusqlite::{params, Connection, Result as SqlResult};
+use rusqlite::{params, Connection};
 use serde::{de::DeserializeOwned, Serialize};
-use serde_json::Value;
+
 use std::sync::Mutex;
-use tauri::AppHandle;
 
 #[derive(Clone)]
 pub struct SupabaseClient {
@@ -253,7 +252,7 @@ pub async fn sync_to_cloud(
 pub async fn sync_from_cloud(
     client: &SupabaseClient,
     db: &Mutex<Connection>,
-    tenant_id: &str,
+    _tenant_id: &str,
 ) -> Result<i32, String> {
     let mut total_downloaded = 0;
 

@@ -57,6 +57,7 @@ impl SecurityManager {
     }
 
     /// Get the hardware fingerprint
+    #[allow(dead_code)]
     pub fn get_hardware_id(&self) -> &str {
         &self.hardware_fingerprint
     }

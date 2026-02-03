@@ -54,5 +54,5 @@ pub async fn configure_database(app: AppHandle, path: String) -> Result<(), Stri
 #[tauri::command]
 pub async fn restart_app(app: AppHandle) -> Result<(), String> {
     app.restart();
-    Ok(())
+    // Ok(()) // Unreachable
 }

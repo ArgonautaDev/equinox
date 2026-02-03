@@ -141,6 +141,9 @@ fn main() {
             commands::sync::start_sync,
             commands::sync::get_last_sync_status,
             commands::sync::check_cloud_updates,
+            // Security
+            commands::security::get_hardware_id,
+            commands::security::verify_license_locally,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -7,6 +7,7 @@ use rusqlite::{params, Connection};
 
 /// Audit event types
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub enum AuditEventType {
     LoginSuccess,
     LoginFailed,

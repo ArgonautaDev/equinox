@@ -14,6 +14,8 @@ import { SetupWizard } from "@/modules/setup";
 import { useAppStore } from "@/lib/store";
 import { auth } from "@/lib/tauri";
 
+import { LicenseGuard } from "@/components/auth/LicenseGuard";
+
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
@@ -22,7 +24,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
   
-  return <>{children}</>;
+  return (
+    <LicenseGuard>
+      {children}
+    </LicenseGuard>
+  );
 }
 
 // Auth check on app load

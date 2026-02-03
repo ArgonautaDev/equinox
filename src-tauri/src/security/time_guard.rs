@@ -6,6 +6,7 @@ use chrono::{DateTime, Duration, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 
 /// Verify system time hasn't been rolled back
+#[allow(dead_code)]
 pub fn verify_time_integrity(conn: &Connection) -> Result<(), String> {
     let last_seen: Option<String> = conn
         .query_row(
@@ -54,6 +55,7 @@ pub fn verify_time_integrity(conn: &Connection) -> Result<(), String> {
 }
 
 /// Get last known system time
+#[allow(dead_code)]
 pub fn get_last_seen_time(conn: &Connection) -> Option<DateTime<Utc>> {
     let result: Option<String> = conn
         .query_row(

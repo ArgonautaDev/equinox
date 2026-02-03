@@ -131,6 +131,7 @@ pub fn record_price_change_db(
 }
 
 /// Record a price change (standalone, acquires lock)
+#[allow(dead_code)]
 pub fn record_price_change(
     state: &State<'_, AppState>,
     product_id: &str,
