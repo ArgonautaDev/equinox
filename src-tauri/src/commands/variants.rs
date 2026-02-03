@@ -207,6 +207,13 @@ pub async fn update_variant(
             .map_err(|_| "Error al acceder a la base de datos")?;
         let now = chrono::Utc::now().to_rfc3339();
 
+        // Get current data for price history
+        let (current_product_id, current_cost, current_sale): (String, f64, f64) = conn.query_row(
+            "SELECT product_id, COALESCE(cost_price, 0), COALESCE(sale_price, 0) FROM product_variants WHERE id = ?1",
+            [&id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).unwrap_or((String::new(), 0.0, 0.0));
+
         let mut set_clauses = vec![format!("updated_at = '{}'", now)];
 
         if let Some(ref name) = data.name {
@@ -237,6 +244,42 @@ pub async fn update_variant(
 
         conn.execute(&query, [])
             .map_err(|e| format!("Error al actualizar variante: {}", e))?;
+
+        // Price History Logic
+        if data.sale_price.is_some() || data.cost_price.is_some() {
+            let user_id = state.user_id.lock().ok().and_then(|u| u.clone());
+
+            if let Some(new_sale) = data.sale_price {
+                if new_sale != current_sale {
+                    let _ = crate::commands::price_history::record_price_change_db(
+                        &*conn,
+                        &tenant_id,
+                        user_id.clone(),
+                        &current_product_id,
+                        Some(&id), // variant_id
+                        "sale_price",
+                        Some(current_sale),
+                        new_sale,
+                        Some("Actualización manual de variante"),
+                    );
+                }
+            }
+            if let Some(new_cost) = data.cost_price {
+                if new_cost != current_cost {
+                    let _ = crate::commands::price_history::record_price_change_db(
+                        &*conn,
+                        &tenant_id,
+                        user_id,
+                        &current_product_id,
+                        Some(&id),
+                        "cost_price",
+                        Some(current_cost),
+                        new_cost,
+                        Some("Actualización manual de costo variante"),
+                    );
+                }
+            }
+        }
     }
 
     get_variant(state, id).await

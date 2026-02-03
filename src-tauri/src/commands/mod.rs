@@ -15,6 +15,7 @@ pub mod product_types;
 pub mod products;
 pub mod settings;
 pub mod setup;
+pub mod sync;
 pub mod system;
 pub mod units;
 pub mod variants;

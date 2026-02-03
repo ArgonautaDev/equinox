@@ -378,6 +378,41 @@ pub async fn update_product(
 
         conn.execute(&query, [])
             .map_err(|e| format!("Error al actualizar producto: {}", e))?;
+
+        // Price History Logic
+        if data.sale_price.is_some() || data.cost_price.is_some() {
+            let user_id = state.user_id.lock().ok().and_then(|u| u.clone());
+            if let Some(new_sale) = data.sale_price {
+                if new_sale != current_sale {
+                    let _ = crate::commands::price_history::record_price_change_db(
+                        &*conn,
+                        &tenant_id,
+                        user_id.clone(),
+                        &id,
+                        None, // variant_id
+                        "sale_price",
+                        Some(current_sale),
+                        new_sale,
+                        Some("Actualización manual de producto"),
+                    );
+                }
+            }
+            if let Some(new_cost) = data.cost_price {
+                if new_cost != current_cost {
+                    let _ = crate::commands::price_history::record_price_change_db(
+                        &*conn,
+                        &tenant_id,
+                        user_id,
+                        &id,
+                        None,
+                        "cost_price",
+                        Some(current_cost),
+                        new_cost,
+                        Some("Actualización manual de costo"),
+                    );
+                }
+            }
+        }
     }
 
     get_product(state, id).await

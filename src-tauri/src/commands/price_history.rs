@@ -94,7 +94,43 @@ pub async fn list_price_history(
     Ok(history)
 }
 
-/// Record a price change (internal function, called by update commands)
+/// Record a price change (internal, takes db connection)
+pub fn record_price_change_db(
+    conn: &rusqlite::Connection,
+    tenant_id: &str,
+    user_id: Option<String>,
+    product_id: &str,
+    variant_id: Option<&str>,
+    price_type: &str,
+    old_price: Option<f64>,
+    new_price: f64,
+    reason: Option<&str>,
+) -> Result<(), String> {
+    let id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    conn.execute(
+        "INSERT INTO price_history (id, tenant_id, product_id, variant_id, price_type, old_price, new_price, changed_by, reason, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        rusqlite::params![
+            &id,
+            tenant_id,
+            product_id,
+            variant_id,
+            price_type,
+            old_price,
+            new_price,
+            user_id,
+            reason,
+            &now
+        ],
+    )
+    .map_err(|e| format!("Error al registrar cambio de precio: {}", e))?;
+
+    Ok(())
+}
+
+/// Record a price change (standalone, acquires lock)
 pub fn record_price_change(
     state: &State<'_, AppState>,
     product_id: &str,
@@ -111,26 +147,8 @@ pub fn record_price_change(
         .lock()
         .map_err(|_| "Error al acceder a la base de datos")?;
 
-    let id = Uuid::new_v4().to_string();
-    let now = chrono::Utc::now().to_rfc3339();
-
-    conn.execute(
-        "INSERT INTO price_history (id, tenant_id, product_id, variant_id, price_type, old_price, new_price, changed_by, reason, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-        rusqlite::params![
-            &id,
-            &tenant_id,
-            product_id,
-            variant_id,
-            price_type,
-            old_price,
-            new_price,
-            user_id,
-            reason,
-            &now
-        ],
+    record_price_change_db(
+        &conn, &tenant_id, user_id, product_id, variant_id, price_type, old_price, new_price,
+        reason,
     )
-    .map_err(|e| format!("Error al registrar cambio de precio: {}", e))?;
-
-    Ok(())
 }

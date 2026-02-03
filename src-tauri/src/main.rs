@@ -137,6 +137,10 @@ fn main() {
             commands::setup::validate_license,
             commands::setup::configure_database,
             commands::setup::restart_app,
+            // Sync
+            commands::sync::start_sync,
+            commands::sync::get_last_sync_status,
+            commands::sync::check_cloud_updates,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

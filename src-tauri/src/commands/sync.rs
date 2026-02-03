@@ -39,9 +39,29 @@ pub async fn start_sync(state: State<'_, AppState>) -> Result<SyncCommandResult,
     })
 }
 
+/// Check for pending updates (polling)
+#[tauri::command]
+pub async fn check_cloud_updates(state: State<'_, AppState>) -> Result<i64, String> {
+    let tenant_id = state.require_tenant().unwrap_or_default();
+    crate::services::sync::check_updates(&state.supabase, &state.db, &tenant_id).await
+}
+
 /// Get last sync status
 #[tauri::command]
-pub async fn get_last_sync_status(_state: State<'_, AppState>) -> Result<String, String> {
-    // TODO: persist this in DB or State
-    Ok("Unknown".to_string())
+pub async fn get_last_sync_status(
+    state: State<'_, AppState>,
+) -> Result<crate::models::sync::SyncStatus, String> {
+    let tenant_id = state.require_tenant().unwrap_or_default();
+
+    // In a real app, query DB for pending items count
+    // For now, return a basic status
+    let status = crate::models::sync::SyncStatus {
+        last_sync: None, // TODO: query from DB
+        pending_uploads: 0,
+        pending_downloads: 0,
+        is_syncing: false,
+        last_error: None,
+    };
+
+    Ok(status)
 }
