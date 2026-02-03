@@ -232,8 +232,6 @@ export function PaymentModal({ invoice, open, onClose }: PaymentModalProps) {
 
               {/* Currency Conversion Logic */}
               {bankAccountId && bankAccounts && (
-              {/* Currency Conversion Logic */}
-              {bankAccountId && bankAccounts && (
                  (() => {
                     const selectedAccount = bankAccounts.find(a => a.id === bankAccountId);
                     if (selectedAccount && selectedAccount.currency !== invoice.currency) {
@@ -286,7 +284,6 @@ export function PaymentModal({ invoice, open, onClose }: PaymentModalProps) {
                     }
                     return null;
                  })()
-              )}
               )}
 
               <div className="space-y-2">
