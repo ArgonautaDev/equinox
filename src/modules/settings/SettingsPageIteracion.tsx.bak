@@ -1,0 +1,899 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  Settings,
+  Lock,
+  Building2,
+  Loader2,
+  CheckCircle2,
+  Users,
+  Plus,
+  Trash2,
+  Edit2,
+  X,
+  GripVertical,
+} from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NumericInput } from "@/components/ui/numeric-input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAppStore } from "@/lib/store";
+import { auth, sellers, settings, type Seller, type CreateSellerDto, type Warehouse, type CreateWarehouseDto } from "@/lib/tauri";
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(6, "Mínimo 6 caracteres"),
+  newPassword: z.string().min(6, "Mínimo 6 caracteres"),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
+});
+
+type PasswordFormData = z.infer<typeof passwordSchema>;
+
+export function SettingsPage() {
+  const user = useAppStore((state) => state.user);
+  const queryClient = useQueryClient();
+  const [passwordChanged, setPasswordChanged] = useState(false);
+
+  // Seller state
+  const [showSellerForm, setShowSellerForm] = useState(false);
+  const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
+  const [sellerName, setSellerName] = useState("");
+  const [sellerCode, setSellerCode] = useState("");
+  const [sellerEmail, setSellerEmail] = useState("");
+  const [sellerPhone, setSellerPhone] = useState("");
+  const [sellerCommission, setSellerCommission] = useState("");
+
+  // Queries
+  const { data: sellerList = [], isLoading: loadingSellers } = useQuery({
+    queryKey: ["sellers"],
+    queryFn: () => sellers.list(),
+  });
+
+  // Password form
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+    setError,
+  } = useForm<PasswordFormData>({
+    resolver: zodResolver(passwordSchema),
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: (data: PasswordFormData) =>
+      auth.changePassword(data.currentPassword, data.newPassword),
+    onSuccess: () => {
+      setPasswordChanged(true);
+      reset();
+      setTimeout(() => setPasswordChanged(false), 3000);
+    },
+    onError: (error: unknown) => {
+      const message = typeof error === "string" ? error : "Error al cambiar contraseña";
+      setError("currentPassword", { message });
+    },
+  });
+
+  // Seller mutations
+  const createSellerMutation = useMutation({
+    mutationFn: sellers.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sellers"] });
+      resetSellerForm();
+    },
+    onError: (error) => {
+      alert(typeof error === "string" ? error : "Error al crear vendedor");
+    },
+  });
+
+  const updateSellerMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: CreateSellerDto }) =>
+      sellers.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sellers"] });
+      resetSellerForm();
+    },
+    onError: (error) => {
+      alert(typeof error === "string" ? error : "Error al actualizar vendedor");
+    },
+  });
+
+  const deleteSellerMutation = useMutation({
+    mutationFn: sellers.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sellers"] });
+    },
+  });
+
+  const resetSellerForm = () => {
+    setShowSellerForm(false);
+    setEditingSeller(null);
+    setSellerName("");
+    setSellerCode("");
+    setSellerEmail("");
+    setSellerPhone("");
+    setSellerCommission("");
+  };
+
+  const handleEditSeller = (seller: Seller) => {
+    setEditingSeller(seller);
+    setSellerName(seller.name);
+    setSellerCode(seller.code || "");
+    setSellerEmail(seller.email || "");
+    setSellerPhone(seller.phone || "");
+    setSellerCommission(String(seller.commission_rate || ""));
+    setShowSellerForm(true);
+  };
+
+  const handleSaveSeller = () => {
+    if (!sellerName.trim()) {
+      alert("El nombre es requerido");
+      return;
+    }
+
+    const data: CreateSellerDto = {
+      name: sellerName.trim(),
+      code: sellerCode.trim() || undefined,
+      email: sellerEmail.trim() || undefined,
+      phone: sellerPhone.trim() || undefined,
+      commission_rate: parseFloat(sellerCommission) || 0,
+    };
+
+    if (editingSeller) {
+      updateSellerMutation.mutate({ id: editingSeller.id, data });
+    } else {
+      createSellerMutation.mutate(data);
+    }
+  };
+
+  const onSubmitPassword = (data: PasswordFormData) => {
+    changePasswordMutation.mutate(data);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <div className="p-2 rounded-lg bg-primary/10">
+          <Settings className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold">Configuración</h1>
+          <p className="text-muted-foreground">
+            Administra tu cuenta y preferencias
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Profile Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Información de la Cuenta
+            </CardTitle>
+            <CardDescription>
+              Datos de tu organización y usuario
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Nombre</Label>
+              <p className="font-medium">{user?.name || "—"}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Email</Label>
+              <p className="font-medium">{user?.email || "—"}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Rol</Label>
+              <p className="font-medium capitalize">{user?.role || "—"}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">ID de Organización</Label>
+              <p className="font-mono text-sm text-muted-foreground">
+                {user?.org_id || "—"}
+              </p>
+            </div>
+            {user?.tenant_id && (
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">ID de Sucursal</Label>
+                <p className="font-mono text-sm text-muted-foreground">
+                  {user.tenant_id}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Change Password */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Cambiar Contraseña
+            </CardTitle>
+            <CardDescription>
+              Actualiza tu contraseña de acceso
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmitPassword)} className="space-y-4">
+              {passwordChanged && (
+                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-green-600 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Contraseña actualizada exitosamente
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Contraseña Actual</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  {...register("currentPassword")}
+                />
+                {errors.currentPassword && (
+                  <p className="text-sm text-destructive">
+                    {errors.currentPassword.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Nueva Contraseña</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  {...register("newPassword")}
+                />
+                {errors.newPassword && (
+                  <p className="text-sm text-destructive">
+                    {errors.newPassword.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar Nueva Contraseña</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  {...register("confirmPassword")}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-sm text-destructive">
+                    {errors.confirmPassword.message}
+                  </p>
+                )}
+              </div>
+
+              <Button type="submit" disabled={changePasswordMutation.isPending}>
+                {changePasswordMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Actualizando...
+                  </>
+                ) : (
+                  "Cambiar Contraseña"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Sellers */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Vendedores
+            </CardTitle>
+            <CardDescription>
+              Gestiona los vendedores de tu sucursal
+            </CardDescription>
+          </div>
+          {!showSellerForm && (
+            <Button onClick={() => setShowSellerForm(true)} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Agregar
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {/* Seller Form */}
+          {showSellerForm && (
+            <div className="border rounded-lg p-4 mb-4 space-y-4 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">
+                  {editingSeller ? "Editar Vendedor" : "Nuevo Vendedor"}
+                </h4>
+                <Button variant="ghost" size="icon" onClick={resetSellerForm}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Nombre *</Label>
+                  <Input
+                    placeholder="Juan Pérez"
+                    value={sellerName}
+                    onChange={(e) => setSellerName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Código</Label>
+                  <Input
+                    placeholder="V001"
+                    value={sellerCode}
+                    onChange={(e) => setSellerCode(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    placeholder="vendedor@empresa.com"
+                    value={sellerEmail}
+                    onChange={(e) => setSellerEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Teléfono</Label>
+                  <Input
+                    placeholder="+58 412 123 4567"
+                    value={sellerPhone}
+                    onChange={(e) => setSellerPhone(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Comisión %</Label>
+                  <NumericInput
+                    placeholder="5"
+                    value={sellerCommission}
+                    onChange={setSellerCommission}
+                    decimalPlaces={2}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSaveSeller}
+                  disabled={createSellerMutation.isPending || updateSellerMutation.isPending}
+                >
+                  {(createSellerMutation.isPending || updateSellerMutation.isPending) ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  {editingSeller ? "Actualizar" : "Crear"}
+                </Button>
+                <Button variant="outline" onClick={resetSellerForm}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Seller List */}
+          {loadingSellers ? (
+            <p className="text-center text-muted-foreground py-4">Cargando...</p>
+          ) : sellerList.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">
+              No hay vendedores registrados
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {sellerList.map((seller) => (
+                <div
+                  key={seller.id}
+                  className="flex items-center justify-between p-3 border rounded-lg"
+                >
+                  <div>
+                    <p className="font-medium">
+                      {seller.code && <span className="text-muted-foreground">{seller.code} - </span>}
+                      {seller.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {seller.email || "Sin email"} • {seller.commission_rate}% comisión
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditSeller(seller)}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        if (confirm("¿Eliminar este vendedor?")) {
+                          deleteSellerMutation.mutate(seller.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Invoice Numbering */}
+      <InvoiceNumberingSection />
+
+      {/* Warehouses */}
+      <WarehousesSection />
+
+      {/* App Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Acerca de Equinox</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Versión</span>
+            <span className="font-mono">0.1.0</span>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+interface SortableItemProps {
+  id: string;
+  value: string;
+  onDelete: () => void;
+}
+
+function SortableItem({ id, value, onDelete }: SortableItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className="flex items-center gap-2 bg-secondary px-3 py-2 rounded-md border text-sm group select-none"
+    >
+      <div {...listeners} className="cursor-grab hover:text-primary active:cursor-grabbing">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <span className="font-mono font-medium">{value}</span>
+      <button
+        onClick={onDelete}
+        className="text-muted-foreground hover:text-destructive ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
+// Invoice Numbering Section Component
+function InvoiceNumberingSection() {
+  const queryClient = useQueryClient();
+  const [prefix, setPrefix] = useState("");
+  const [nextNumber, setNextNumber] = useState("");
+  // const [pattern, setPattern] = useState(""); // Kept for reference but replacing with items
+  const [items, setItems] = useState<{ id: string; value: string }[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const { data: sequence, isLoading } = useQuery({
+    queryKey: ["invoice-sequence"],
+    queryFn: () => settings.getInvoiceSequence(),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: settings.updateInvoiceSequence,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoice-sequence"] });
+      setIsEditing(false);
+    },
+  });
+
+  const startEditing = () => {
+    if (sequence) {
+      setPrefix(sequence.prefix);
+      setNextNumber(String(sequence.next_number));
+      
+      // Parse pattern into tokens
+      const regex = /({[^}]+})|([^{}]+)/g;
+      const matches = sequence.pattern.match(regex) || [];
+      setItems(matches.map((m, i) => ({ id: `item-${i}-${Date.now()}`, value: m })));
+      
+      setIsEditing(true);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setItems((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const addToken = (token: string) => {
+    setItems([...items, { id: `token-${Date.now()}`, value: token }]);
+  };
+
+  const addSeparator = () => {
+    const sep = prompt("Ingresa el separador (ej: - / . espacio):", "-");
+    if (sep) {
+      setItems([...items, { id: `sep-${Date.now()}`, value: sep }]);
+    }
+  };
+
+  const deleteItem = (id: string) => {
+    setItems(items.filter((i) => i.id !== id));
+  };
+
+  const currentPatternPreview = items.map(i => i.value).join("");
+
+  const handleSave = () => {
+    updateMutation.mutate({
+      prefix,
+      next_number: parseInt(nextNumber) || 1,
+      pattern: currentPatternPreview,
+    });
+  };
+
+  if (isLoading) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-lg">#</span>
+          Numeración de Facturas
+        </CardTitle>
+        <CardDescription>
+          Configura el prefijo y patrón de numeración
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!isEditing ? (
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label className="text-muted-foreground">Prefijo</Label>
+                <p className="font-medium">{sequence?.prefix || "FAC"}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Próximo Número</Label>
+                <p className="font-medium">{sequence?.next_number || 1}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Patrón Actual</Label>
+                <p className="font-mono text-sm bg-muted inline-block px-2 py-1 rounded">
+                  {sequence?.pattern || "{PREFIX}-{NUMBER}"}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Ejemplo: <span className="font-mono">{sequence?.prefix}-{String(sequence?.next_number).padStart(6, "0")}</span>
+            </p>
+            <Button variant="outline" onClick={startEditing}>
+              Modificar
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Prefijo</Label>
+                <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Próximo Número</Label>
+                <Input
+                  type="number"
+                  value={nextNumber}
+                  onChange={(e) => setNextNumber(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <Label>Constructor de Patrón</Label>
+                <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
+                  Vista previa: {currentPatternPreview}
+                </span>
+              </div>
+              
+              <div className="border rounded-lg p-4 bg-muted/30 min-h-[80px]">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={items.map((i) => i.id)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {items.map((item) => (
+                        <SortableItem
+                          key={item.id}
+                          id={item.id}
+                          value={item.value}
+                          onDelete={() => deleteItem(item.id)}
+                        />
+                      ))}
+                      {items.length === 0 && (
+                        <span className="text-muted-foreground text-sm italic">
+                          Arrastra o agrega elementos aquí...
+                        </span>
+                      )}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Agregar Elementos</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="secondary" size="sm" onClick={() => addToken("{PREFIX}")}>
+                    <Plus className="h-3 w-3 mr-1" /> Prefijo
+                  </Button>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => addToken("{NUMBER}")}>
+                    <Plus className="h-3 w-3 mr-1" /> Número
+                  </Button>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => addToken("{YEAR}")}>
+                    <Plus className="h-3 w-3 mr-1" /> Año
+                  </Button>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => addToken("{MONTH}")}>
+                    <Plus className="h-3 w-3 mr-1" /> Mes
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={addSeparator}>
+                    <Plus className="h-3 w-3 mr-1" /> Separador
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button onClick={handleSave} disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Guardar Configuración
+              </Button>
+              <Button variant="outline" onClick={() => setIsEditing(false)}>Cancelar</Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Warehouses Section Component
+function WarehousesSection() {
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [isDefault, setIsDefault] = useState(false);
+
+  const { data: warehouses = [], isLoading } = useQuery({
+    queryKey: ["warehouses"],
+    queryFn: () => settings.listWarehouses(),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: settings.createWarehouse,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      resetForm();
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: CreateWarehouseDto }) =>
+      settings.updateWarehouse(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      resetForm();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: settings.deleteWarehouse,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+    },
+    onError: (error) => {
+      alert(typeof error === "string" ? error : "Error al eliminar");
+    },
+  });
+
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingWarehouse(null);
+    setCode("");
+    setName("");
+    setIsDefault(false);
+  };
+
+  const handleEdit = (wh: Warehouse) => {
+    setEditingWarehouse(wh);
+    setCode(wh.code);
+    setName(wh.name);
+    setIsDefault(wh.is_default);
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    if (!code.trim() || !name.trim()) {
+      alert("Código y nombre son requeridos");
+      return;
+    }
+
+    const data: CreateWarehouseDto = { code, name, is_default: isDefault };
+
+    if (editingWarehouse) {
+      updateMutation.mutate({ id: editingWarehouse.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Almacenes
+          </CardTitle>
+          <CardDescription>Gestiona los almacenes de tu sucursal</CardDescription>
+        </div>
+        {!showForm && (
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Agregar
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {showForm && (
+          <div className="border rounded-lg p-4 mb-4 space-y-4 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium">
+                {editingWarehouse ? "Editar Almacén" : "Nuevo Almacén"}
+              </h4>
+              <Button variant="ghost" size="icon" onClick={resetForm}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Código *</Label>
+                <Input placeholder="01" value={code} onChange={(e) => setCode(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Nombre *</Label>
+                <Input placeholder="Principal" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="space-y-2 flex items-end gap-2">
+                <input
+                  type="checkbox"
+                  id="isDefaultWarehouse"
+                  checked={isDefault}
+                  onChange={(e) => setIsDefault(e.target.checked)}
+                />
+                <Label htmlFor="isDefaultWarehouse">Por defecto</Label>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
+                {editingWarehouse ? "Actualizar" : "Crear"}
+              </Button>
+              <Button variant="outline" onClick={resetForm}>Cancelar</Button>
+            </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          <p className="text-center text-muted-foreground py-4">Cargando...</p>
+        ) : warehouses.length === 0 ? (
+          <p className="text-center text-muted-foreground py-4">No hay almacenes</p>
+        ) : (
+          <div className="space-y-2">
+            {warehouses.map((wh) => (
+              <div key={wh.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <p className="font-medium">
+                    {wh.code} - {wh.name}
+                    {wh.is_default && (
+                      <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                        Principal
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => handleEdit(wh)}>
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  {!wh.is_default && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        if (confirm("¿Eliminar este almacén?")) {
+                          deleteMutation.mutate(wh.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default SettingsPage;

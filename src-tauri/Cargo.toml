@@ -1,0 +1,70 @@
+[package]
+name = "equinox-erp"
+version = "0.1.0"
+description = "Equinox ERP - Modular Enterprise Resource Planning"
+authors = ["Equinox Team"]
+edition = "2021"
+rust-version = "1.70"
+
+[lib]
+name = "equinox_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell = "2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Database (SQLite + SQLCipher encryption)
+rusqlite = { version = "0.31", features = ["bundled-sqlcipher"] }
+
+# Security
+sha2 = "0.10"
+hex = "0.4"
+argon2 = { version = "0.5", features = ["std"] }
+rand = "0.8"
+machine-uid = "0.5"
+zeroize = { version = "1.7", features = ["derive"] }
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Date/Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID generation
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Decimal for money (NEVER use floats for money!)
+rust_decimal = { version = "1.33", features = ["serde"] }
+rust_decimal_macros = "1.33"
+
+# PDF generation
+printpdf = "0.6"
+
+# Regex for validation
+regex = "1"
+reqwest = { version = "0.13.1", features = ["json", "multipart"] }
+tauri-plugin-dialog = "2.0.0-beta.0"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

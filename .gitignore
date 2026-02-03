@@ -1,0 +1,22 @@
+# Node
+node_modules
+dist
+.env
+.DS_Store
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Editor
+.vscode
+.idea
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+Thumbs.db
