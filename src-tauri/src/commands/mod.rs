@@ -20,4 +20,5 @@ pub mod setup;
 pub mod sync;
 pub mod system;
 pub mod units;
+pub mod updater; // NEW
 pub mod variants;

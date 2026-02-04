@@ -3,10 +3,12 @@
 //! Handles SQLCipher encrypted database initialization and migrations.
 
 use rusqlite::Connection;
+use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri::Manager;
 
 use super::migrations;
+use crate::commands::setup::DbConfig;
 use crate::security::SecurityManager;
 
 pub struct DatabaseManager {
@@ -19,28 +21,34 @@ impl DatabaseManager {
         app: &AppHandle,
         security: &SecurityManager,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        // Get app data directory
         let app_dir = app.path().app_data_dir()?;
-        std::fs::create_dir_all(&app_dir)?;
 
-        #[cfg(debug_assertions)]
-        println!("📂 App Data Dir: {:?}", app_dir);
+        // Create hidden .data directory for database files
+        let data_dir = app_dir.join(".data");
+        std::fs::create_dir_all(&data_dir)
+            .map_err(|e| format!("Error creating .data directory: {}", e))?;
 
-        // Check for db_config.json
-        let config_path = app_dir.join("db_config.json");
+        // Check for custom db path in config
+        let config_dir = app_dir.join(".config");
+        let config_path = config_dir.join("db_config.json");
+
         let db_path = if config_path.exists() {
-            let config_content = std::fs::read_to_string(&config_path)?;
-            let config: serde_json::Value = serde_json::from_str(&config_content)?;
-            if let Some(path_str) = config.get("db_path").and_then(|v| v.as_str()) {
-                std::path::PathBuf::from(path_str)
+            let config_content = std::fs::read_to_string(&config_path)
+                .map_err(|e| format!("Error reading config: {}", e))?;
+            let config: DbConfig = serde_json::from_str(&config_content)
+                .map_err(|e| format!("Error parsing config: {}", e))?;
+
+            if config.db_path.is_empty() {
+                data_dir.join("equinox.db")
             } else {
-                app_dir.join("equinox.db")
+                PathBuf::from(config.db_path)
             }
         } else {
-            app_dir.join("equinox.db")
+            // Default to hidden .data directory
+            data_dir.join("equinox.db")
         };
 
-        #[cfg(debug_assertions)]
+        println!("📂 App Data Dir: {:?}", app_dir);
         println!("📂 Database path: {:?}", db_path);
 
         // Open database

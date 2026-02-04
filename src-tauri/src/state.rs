@@ -69,7 +69,9 @@ impl AppState {
 pub enum ServiceError {
     Database(String),
     Validation(String),
+    #[allow(dead_code)]
     NotFound(String),
+    #[allow(dead_code)]
     Unauthorized(String),
 }
 

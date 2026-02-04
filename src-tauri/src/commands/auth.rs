@@ -10,7 +10,7 @@ use chrono::Utc;
 use rand::rngs::OsRng;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 use uuid::Uuid;
 
 use crate::security::audit;
@@ -333,107 +333,144 @@ pub async fn setup_initial_admin(
     admin_email: String,
     admin_password: String,
 ) -> Result<User, String> {
-    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    // Clone these for use after the DB operations
+    let tenant_id_clone: String;
+    let user_id_clone: String;
+    let org_id_clone: String;
+    let admin_email_clone = admin_email.clone();
+    let admin_name_clone = admin_name.clone();
 
-    // Check if any users already exist
-    let user_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))
-        .unwrap_or(0);
+    // All DB operations in explicit scope - conn will be dropped at end of scope
+    {
+        let conn = state.db.lock().map_err(|e| e.to_string())?;
 
-    if user_count > 0 {
-        return Err("El sistema ya tiene usuarios configurados. Use el login normal.".to_string());
-    }
+        // Check if any users already exist
+        let user_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))
+            .unwrap_or(0);
 
-    // Validate password
-    if admin_password.len() < 6 {
-        return Err("La contraseña debe tener al menos 6 caracteres".to_string());
-    }
+        if user_count > 0 {
+            return Err(
+                "El sistema ya tiene usuarios configurados. Use el login normal.".to_string(),
+            );
+        }
 
-    let now = Utc::now().to_rfc3339();
+        // Validate password
+        if admin_password.len() < 6 {
+            return Err("La contraseña debe tener al menos 6 caracteres".to_string());
+        }
 
-    // Create organization
-    let org_id = Uuid::new_v4().to_string();
-    conn.execute(
-        r#"
-        INSERT INTO organizations (id, name, plan, created_at)
-        VALUES (?1, ?2, 'starter', ?3)
-        "#,
-        params![org_id, org_name, now],
-    )
-    .map_err(|e| format!("Error creando organización: {}", e))?;
+        let now = Utc::now().to_rfc3339();
 
-    // Create default tenant (main branch)
-    let tenant_id = Uuid::new_v4().to_string();
-    conn.execute(
-        r#"
-        INSERT INTO tenants (id, org_id, name, is_active, created_at)
-        VALUES (?1, ?2, 'Sucursal Principal', 1, ?3)
-        "#,
-        params![tenant_id, org_id, now],
-    )
-    .map_err(|e| format!("Error creando sucursal: {}", e))?;
+        // Create organization
+        let org_id = Uuid::new_v4().to_string();
+        conn.execute(
+            r#"
+            INSERT INTO organizations (id, name, plan, created_at)
+            VALUES (?1, ?2, 'starter', ?3)
+            "#,
+            params![org_id, org_name, now],
+        )
+        .map_err(|e| format!("Error creando organización: {}", e))?;
 
-    // Hash the password
-    let password_hash = hash_password(&admin_password)?;
+        // Create default tenant (main branch)
+        let tenant_id = Uuid::new_v4().to_string();
+        conn.execute(
+            r#"
+            INSERT INTO tenants (id, org_id, name, is_active, created_at)
+            VALUES (?1, ?2, 'Sucursal Principal', 1, ?3)
+            "#,
+            params![tenant_id, org_id, now],
+        )
+        .map_err(|e| format!("Error creando sucursal: {}", e))?;
 
-    // Create admin user
-    let user_id = Uuid::new_v4().to_string();
-    conn.execute(
-        r#"
-        INSERT INTO users (id, org_id, tenant_id, email, password_hash, name, role, is_active, created_at)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'admin', 1, ?7)
-        "#,
-        params![user_id, org_id, tenant_id, admin_email, password_hash, admin_name, now],
-    ).map_err(|e| format!("Error creando usuario: {}", e))?;
+        // Hash the password
+        let password_hash = hash_password(&admin_password)?;
 
-    // Log the setup
-    audit::log_event(
-        &conn,
-        Some(&tenant_id),
-        Some(&user_id),
-        audit::AuditEventType::UserCreated,
-        Some("system"),
-        None,
-        &format!("Initial setup: org={}, admin={}", org_name, admin_email),
-    )
-    .ok();
+        // Create admin user
+        let user_id = Uuid::new_v4().to_string();
+        conn.execute(
+            r#"
+            INSERT INTO users (id, org_id, tenant_id, email, password_hash, name, role, is_active, created_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'admin', 1, ?7)
+            "#,
+            params![user_id, org_id, tenant_id, admin_email, password_hash, admin_name, now],
+        ).map_err(|e| format!("Error creando usuario: {}", e))?;
 
-    // Seed default units and product types for the new tenant
-    crate::commands::units::seed_default_units(&conn, &tenant_id).ok();
-    crate::commands::product_types::seed_default_product_types(&conn, &tenant_id).ok();
+        // Log the setup
+        audit::log_event(
+            &conn,
+            Some(&tenant_id),
+            Some(&user_id),
+            audit::AuditEventType::UserCreated,
+            Some("system"),
+            None,
+            &format!("Initial setup: org={}, admin={}", org_name, admin_email),
+        )
+        .ok();
+
+        // Seed default units and product types for the new tenant
+        crate::commands::units::seed_default_units(&conn, &tenant_id).ok();
+        crate::commands::product_types::seed_default_product_types(&conn, &tenant_id).ok();
+
+        // Clone values for use outside this scope
+        tenant_id_clone = tenant_id;
+        user_id_clone = user_id;
+        org_id_clone = org_id;
+    } // conn is dropped here automatically
 
     // Set user and tenant in state
-    drop(conn);
-
     {
         let mut user_id_lock = state.user_id.lock().map_err(|e| e.to_string())?;
-        *user_id_lock = Some(user_id.clone());
+        *user_id_lock = Some(user_id_clone.clone());
     }
 
     {
         let mut tenant_id_lock = state.tenant_id.lock().map_err(|e| e.to_string())?;
-        *tenant_id_lock = Some(tenant_id.clone());
+        *tenant_id_lock = Some(tenant_id_clone.clone());
+    }
+
+    // Sync installation to Supabase (non-blocking - if fails, local installation continues)
+    let sync_result = crate::services::sync::sync_installation_to_cloud(
+        &state.supabase,
+        &state.db,
+        &tenant_id_clone,
+    )
+    .await;
+
+    match sync_result {
+        Ok(_) => println!("✅ Installation registered in Supabase"),
+        Err(e) => {
+            eprintln!(
+                "⚠️ Warning: Failed to sync with Supabase (local installation OK): {}",
+                e
+            );
+            // Continue anyway - local installation is complete
+        }
     }
 
     Ok(User {
-        id: user_id,
-        org_id,
-        tenant_id: Some(tenant_id),
-        name: admin_name,
-        email: admin_email,
+        id: user_id_clone,
+        org_id: org_id_clone,
+        tenant_id: Some(tenant_id_clone),
+        name: admin_name_clone,
+        email: admin_email_clone,
         role: "admin".to_string(),
         is_active: true,
     })
 }
 
 /// Check if initial setup is required
+/// Returns true if db_config.json doesn't exist (first run)
 #[tauri::command]
-pub async fn check_setup_required(state: State<'_, AppState>) -> Result<bool, String> {
-    let conn = state.db.lock().map_err(|e| e.to_string())?;
+pub async fn check_setup_required(app: AppHandle) -> Result<bool, String> {
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Error al obtener directorio de la app: {}", e))?;
 
-    let user_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM users", [], |row| row.get(0))
-        .unwrap_or(0);
+    let config_path = app_dir.join(".config").join("db_config.json");
 
-    Ok(user_count == 0)
+    // Setup is required if the config file doesn't exist
+    Ok(!config_path.exists())
 }

@@ -20,3 +20,6 @@ pnpm-debug.log*
 
 # OS
 Thumbs.db
+src-tauri/keys/updater
+.pnpm-store
+

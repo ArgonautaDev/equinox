@@ -16,6 +16,8 @@ import { auth } from "@/lib/tauri";
 import { CashRegisterProvider } from "@/modules/cash-register/CashRegisterProvider";
 
 import { LicenseGuard } from "@/components/auth/LicenseGuard";
+import { usePrivacyMode } from "@/hooks/usePrivacyMode";
+import { DecoyScreen } from "@/components/DecoyScreen";
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -95,6 +97,13 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+
+  const { isDecoyMode } = usePrivacyMode();
+
+  if (isDecoyMode) {
+    return <DecoyScreen />;
+  }
+
   return (
     <BrowserRouter>
       <AuthProvider>

@@ -21,6 +21,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Initialize database and state
             let app_state = AppState::new(app.handle().clone())?;
@@ -137,6 +138,11 @@ fn main() {
             commands::setup::validate_license,
             commands::setup::configure_database,
             commands::setup::restart_app,
+            commands::setup::detect_previous_installation,
+            commands::setup::list_database_files,
+            commands::setup::check_existing_database,
+            commands::setup::migrate_database,
+            commands::setup::set_installation_path,
             // Sync
             commands::sync::start_sync,
             commands::sync::get_last_sync_status,
@@ -152,6 +158,9 @@ fn main() {
             commands::cash_register::add_movement,
             commands::cash_register::get_active_session,
             commands::cash_register::list_registers,
+            // Updater
+            commands::updater::check_for_updates,
+            commands::updater::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

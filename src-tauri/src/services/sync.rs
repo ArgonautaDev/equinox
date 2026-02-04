@@ -3,6 +3,7 @@
 //! Handles synchronization between local SQLite and Supabase.
 
 use crate::models::client::Client;
+use crate::models::sync::{OrganizationSync, TenantSync, UserSync};
 use rusqlite::{params, Connection};
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -350,4 +351,117 @@ pub async fn sync_from_cloud(
     }
 
     Ok(total_downloaded)
+}
+
+/// Sync installation data to Supabase (Organizations, Tenants, Users)
+/// This is called after setup_initial_admin to register the installation in the central database
+/// Returns Ok(()) on success, Err(msg) on failure (non-blocking - local installation continues)
+pub async fn sync_installation_to_cloud(
+    client: &SupabaseClient,
+    db: &Mutex<Connection>,
+    tenant_id: &str,
+) -> Result<(), String> {
+    println!("🔄 Starting installation sync to Supabase...");
+
+    // Fetch data from local DB (Lock Scope)
+    let (org_data, tenant_data, user_data) = {
+        let conn = db.lock().map_err(|e| e.to_string())?;
+
+        // 1. Get Organization
+        let org: OrganizationSync = conn
+            .query_row(
+                "SELECT o.id, o.name, o.tax_id, o.plan, o.created_at 
+                 FROM organizations o
+                 JOIN tenants t ON t.org_id = o.id
+                 WHERE t.id = ?",
+                [tenant_id],
+                |row| {
+                    Ok(OrganizationSync {
+                        id: row.get(0)?,
+                        name: row.get(1)?,
+                        tax_id: row.get(2)?,
+                        plan: row.get(3)?,
+                        created_at: row.get(4)?,
+                    })
+                },
+            )
+            .map_err(|e| format!("Error fetching organization: {}", e))?;
+
+        // 2. Get Tenant
+        let tenant: TenantSync = conn
+            .query_row(
+                "SELECT id, org_id, name, hardware_id, is_active, created_at 
+                 FROM tenants 
+                 WHERE id = ?",
+                [tenant_id],
+                |row| {
+                    Ok(TenantSync {
+                        id: row.get(0)?,
+                        org_id: row.get(1)?,
+                        name: row.get(2)?,
+                        hardware_id: row.get(3)?,
+                        is_active: row.get(4)?,
+                        created_at: row.get(5)?,
+                    })
+                },
+            )
+            .map_err(|e| format!("Error fetching tenant: {}", e))?;
+
+        // 3. Get Users for this tenant
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, org_id, tenant_id, email, name, role, is_active, created_at 
+                 FROM users 
+                 WHERE tenant_id = ?",
+            )
+            .map_err(|e| format!("Error preparing user query: {}", e))?;
+
+        let users: Vec<UserSync> = stmt
+            .query_map([tenant_id], |row| {
+                Ok(UserSync {
+                    id: row.get(0)?,
+                    org_id: row.get(1)?,
+                    tenant_id: row.get(2)?,
+                    email: row.get(3)?,
+                    name: row.get(4)?,
+                    role: row.get(5)?,
+                    is_active: row.get(6)?,
+                    created_at: row.get(7)?,
+                })
+            })
+            .map_err(|e| format!("Error querying users: {}", e))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Error collecting users: {}", e))?;
+
+        (org, tenant, users)
+    }; // Lock released
+
+    // Upload to Supabase (Async, No Lock)
+    // Order matters: org → tenant → users (foreign keys)
+
+    // 1. Upload Organization
+    println!("📤 Syncing organization: {}", org_data.name);
+    client
+        .upsert("organizations", &vec![org_data])
+        .await
+        .map_err(|e| format!("Failed to sync organization: {}", e))?;
+
+    // 2. Upload Tenant
+    println!("📤 Syncing tenant: {}", tenant_data.name);
+    client
+        .upsert("tenants", &vec![tenant_data])
+        .await
+        .map_err(|e| format!("Failed to sync tenant: {}", e))?;
+
+    // 3. Upload Users
+    println!("📤 Syncing {} user(s)", user_data.len());
+    if !user_data.is_empty() {
+        client
+            .upsert("users", &user_data)
+            .await
+            .map_err(|e| format!("Failed to sync users: {}", e))?;
+    }
+
+    println!("✅ Installation registered in Supabase successfully");
+    Ok(())
 }
