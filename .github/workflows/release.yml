@@ -49,32 +49,11 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
-      - name: Decode Signing Key
-        shell: bash
-        env:
-          RAW_SECRET: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        run: |
-          bun -e "
-            // KEY encoded in DOUBLE Base64 by user/system
-            const DOUBLE_B64 = 'ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhKemFXZHVJR1Z1WTNKNWNIUmxaQ0J6WldOeVpYUWdhMlY1Q2xKWFVsUlpNRWw1WVdsUE1FSnRaSEpZZW5sbVRUWTJka2RGVEUxV1dWVTVVVFYxVlVkSFYzVllNblE0VVZSUVVYUlNWVUZCUWtGQlFVRkJRVUZCUVVGQlFVbEJRVUZCUVdOSmVtVTVNMkZqVGxFMVQwOWxhMVpvWVVoTWJIVXpiV2RZTjFOWGRqTkNNazlpTW5OU1pXNVROR1YwWVdwTU1FZFhlRkJOTm5acE5rRjNOMUF5VHpob2JWTjBURXBwWVRjeFdUUkpVSGh0TkROR1JIUlVkVEoyVFdwYU5ERkViRmg1YUd4TlQyOW1VV3MyVm1zNVdpdG5hMGc0VlRVd05IRTBiWGxxWlRGcFUyeEtVR0ZRWldvMFpGRTlDZz09';
-            
-            // 1. Decode ONCE to get the Single Base64 string (Layer 1)
-            const singleB64 = Buffer.from(DOUBLE_B64, 'base64').toString('utf8').trim();
-            
-            console.log('Decoded Double-Base64 to Single-Base64.');
-            console.log('Result starts with:', singleB64.substring(0, 10));
 
-            if (singleB64.includes(' ')) {
-                console.error('CRITICAL: Result contains spaces!');
-                process.exit(1);
-            }
-
-            const fs = require('fs');
-            fs.appendFileSync(process.env.GITHUB_ENV, 'TAURI_SIGNING_PRIVATE_KEY=' + singleB64 + '\n');
-          "
 
       - name: Build and Sign
         env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bun run tauri build
