@@ -49,29 +49,23 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
-      - name: Decode Signing Key
+      - name: Set Signing Key
         shell: bash
         env:
-          RAW_SECRET: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
-          bun -e "
-            // KEY encoded in DOUBLE Base64 by user/system
-            const DOUBLE_B64 = 'ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUhKemFXZHVJR1Z1WTNKNWNIUmxaQ0J6WldOeVpYUWdhMlY1Q2xKWFVsUlpNRWw1WVdsUE1FSnRaSEpZZW5sbVRUWTJka2RGVEUxV1dWVTVVVFYxVlVkSFYzVllNblE0VVZSUVVYUlNWVUZCUWtGQlFVRkJRVUZCUVVGQlFVbEJRVUZCUVdOSmVtVTVNMkZqVGxFMVQwOWxhMVpvWVVoTWJIVXpiV2RZTjFOWGRqTkNNazlpTW5OU1pXNVROR1YwWVdwTU1FZFhlRkJOTm5acE5rRjNOMUF5VHpob2JWTjBURXBwWVRjeFdUUkpVSGh0TkROR1JIUlVkVEoyVFdwYU5ERkViRmg1YUd4TlQyOW1VV3MyVm1zNVdpdG5hMGc0VlRVd05IRTBiWGxxWlRGcFUyeEtVR0ZRWldvMFpGRTlDZz09';
-            
-            // 1. Decode ONCE to get the Single Base64 string (Layer 1)
-            const singleB64 = Buffer.from(DOUBLE_B64, 'base64').toString('utf8').trim();
-            
-            console.log('Decoded Double-Base64 to Single-Base64.');
-            console.log('Result starts with:', singleB64.substring(0, 10));
-
-            if (singleB64.includes(' ')) {
-                console.error('CRITICAL: Result contains spaces!');
-                process.exit(1);
-            }
-
-            const fs = require('fs');
-            fs.appendFileSync(process.env.GITHUB_ENV, 'TAURI_SIGNING_PRIVATE_KEY=' + singleB64 + '\n');
-          "
+          # Verificar que el secreto incluya el comentario requerido
+          if ! echo "$TAURI_SIGNING_PRIVATE_KEY" | head -n1 | grep -q "untrusted comment"; then
+            echo "❌ ERROR: La clave privada debe incluir 'untrusted comment' en la primera línea"
+            echo ""
+            echo "Formato esperado:"
+            echo "  untrusted comment: rsign encrypted secret key"
+            echo "  RWR...base64data...=="
+            echo ""
+            echo "Por favor actualiza el secreto TAURI_SIGNING_PRIVATE_KEY en GitHub"
+            exit 1
+          fi
+          echo "✅ Formato de clave válido"
 
       - name: Build and Sign
         env:
