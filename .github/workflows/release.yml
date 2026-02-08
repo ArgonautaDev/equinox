@@ -49,23 +49,30 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
-      - name: Set Signing Key
+      - name: Prepare Signing Key
         shell: bash
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          RAW_SECRET: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
-          # Verificar que el secreto incluya el comentario requerido
-          if ! echo "$TAURI_SIGNING_PRIVATE_KEY" | head -n1 | grep -q "untrusted comment"; then
-            echo "❌ ERROR: La clave privada debe incluir 'untrusted comment' en la primera línea"
-            echo ""
-            echo "Formato esperado:"
-            echo "  untrusted comment: rsign encrypted secret key"
-            echo "  RWR...base64data...=="
-            echo ""
-            echo "Por favor actualiza el secreto TAURI_SIGNING_PRIVATE_KEY en GitHub"
-            exit 1
+          # 1. Verificar encabezado (diagnóstico)
+          if ! echo "$RAW_SECRET" | head -n1 | grep -q "untrusted comment"; then
+             echo "❌ La clave no comienza con 'untrusted comment'"
+             exit 1
           fi
-          echo "✅ Formato de clave válido"
+
+          # 2. Sanitizar: Eliminar \r (Windows terminators) y espacios extra
+          CLEAN_KEY=$(echo "$RAW_SECRET" | tr -d '\r')
+
+          # 3. Exportar usando GITHUB_ENV para persistencia correcta de multilinea
+          # Usamos un delimitador aleatorio para seguridad
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          {
+            echo "TAURI_SIGNING_PRIVATE_KEY<<$EOF"
+            echo "$CLEAN_KEY"
+            echo "$EOF"
+          } >> $GITHUB_ENV
+
+          echo "✅ Clave sanitizada y exportada a GITHUB_ENV"
 
       - name: Build and Sign
         env:
