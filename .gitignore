@@ -23,3 +23,12 @@ Thumbs.db
 src-tauri/keys/updater
 .pnpm-store
 
+# Temporary files
+*.log
+*_log.txt
+crash_log.txt
+error.txt
+list.txt
+filelist.txt
+exelist.txt
+
