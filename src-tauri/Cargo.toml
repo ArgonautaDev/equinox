@@ -1,6 +1,6 @@
 [package]
 name = "equinox-erp"
-version = "0.1.4"
+version = "0.1.5"
 description = "Equinox ERP - Modular Enterprise Resource Planning"
 authors = ["Equinox Team"]
 edition = "2021"
