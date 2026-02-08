@@ -1,81 +1,103 @@
-# Guía de Firmado Digital de Equinox ERP
+# Guía de Firmado de Instaladores - Equinox ERP
 
-Este documento detalla el proceso para firmar digitalmente los instaladores de Equinox ERP para Windows, macOS y Linux.
+Este documento describe el proceso para firmar digitalmente las actualizaciones de Equinox ERP y publicar nuevas versiones.
 
-## 🔑 Requisitos Previos
+## � Prerrequisitos
 
-- **Clave Privada**: El archivo `private.key` debe estar en `src-tauri/keys/` o su contenido en la variable de entorno `TAURI_SIGNING_PRIVATE_KEY`.
-- **Contraseña**: La clave está protegida por la contraseña `EquinoxSecure2026`. Defínela en la variable de entorno `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` para evitar prompts interactivos.
-- **Tauri CLI**: Se requiere tener instalado el CLI de Tauri o usar `bun x @tauri-apps/cli`.
+1.  **Tauri CLI**: `bun install` o `cargo install tauri-cli`
+2.  **Clave Privada**: Archivo `src-tauri/keys/private.key` (Minisign).
+3.  **Contraseña**: Variable de entorno `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 
-## 📦 Proceso de Firmado
+## 🔑 Gestión de Claves
 
-El comando general es:
-```bash
-bun x @tauri-apps/cli signer sign --private-key /ruta/a/private.key /ruta/al/instalador
-```
+**Importante**: Si la clave privada viene de GitHub Secrets, puede estar en Base64. `tauri signer` requiere el formato de texto plano (Minisign).
 
-Para automatización (recomendado):
+### Verificar Formato
+Si `private.key` es una sola línea larga (`dW50...`), está en Base64. Debes decodificarla:
+
 ```powershell
-$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content src-tauri\keys\private.key
-$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = 'EquinoxSecure2026'
-
-bun x @tauri-apps/cli signer sign instalador.exe
+# PowerShell
+$c = Get-Content src-tauri\keys\private.key
+$b = [System.Convert]::FromBase64String($c)
+$t = [System.Text.Encoding]::UTF8.GetString($b)
+Set-Content src-tauri\keys\private.decoded.key $t
 ```
 
-### Windows (x64 y ARM64)
-Archivos a firmar: `.exe` en `installers/`.
+Usa esta variable para firmar sin crear archivos temporales.
 
+---
+
+## 🪟 Windows (x64 / ARM64)
+
+### 1. Construir
+Genera el instalador estándar de Tauri (NSIS):
 ```bash
-# x64
+bun run tauri build
+```
+El instalador se generará en: `src-tauri/target/release/bundle/nsis/`
+
+### 2. Firmar
+# Cargar clave en variable de entorno
+$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content src-tauri\keys\private.key
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = 'TU_CONTRASEÑA'
+
+# Copiar a installers/ (opcional, para organizar)
+cp "src-tauri/target/release/bundle/nsis/Equinox ERP_0.1.4_x64-setup.exe" installers/Equinox_ERP_0.1.4_x64_Setup.exe
+
+# Firmar (La CLI usará la variable de entorno automáticamente si no se pasa --private-key)
 bun x @tauri-apps/cli signer sign installers/Equinox_ERP_0.1.4_x64_Setup.exe
 
-# ARM64
-bun x @tauri-apps/cli signer sign installers/Equinox_ERP_0.1.4_ARM64_Setup.exe
-```
+### 3. Verificar Firma
+El comando generará archivos `.sig` (ej. `Equinox_ERP_0.1.4_x64_Setup.exe.sig`).
+Abre estos archivos para obtener el string de firma necesario para `latest.json`.
 
-### macOS (Intel y Silicon)
-Archivos a firmar: `.dmg` o `.app.tar.gz`.
+---
 
-```bash
-# Intel (x86_64)
-bun x @tauri-apps/cli signer sign installers/Equinox_ERP_0.1.4_x64.dmg
+## 🍎 macOS (Silicon / Intel)
 
-# Silicon (aarch64)
-bun x @tauri-apps/cli signer sign installers/Equinox_ERP_0.1.4_aarch64.dmg
-```
-
-### Linux
-Archivos a firmar: `.AppImage` o `.deb`.
+Requiere una Mac para firmar `.dmg` o `.app`.
 
 ```bash
-bun x @tauri-apps/cli signer sign installers/Equinox_ERP_0.1.4_amd64.AppImage
+# Firmar Apple Silicon (aarch64)
+bun x @tauri-apps/cli signer sign --private-key src-tauri/keys/private.key installers/Equinox_ERP_0.1.4_aarch64.dmg
+
+# Firmar Intel (x86_64)
+bun x @tauri-apps/cli signer sign --private-key src-tauri/keys/private.key installers/Equinox_ERP_0.1.4_x64.dmg
 ```
 
-## 🔄 Actualización de `latest.json`
+**Nota**: macOS también requiere **Notarización** de Apple si se distribuye fuera de la App Store. Esto se configura en `tauri.conf.json` bajo `bundle.macOS.signingIdentity`.
 
-Después de firmar, se generarán archivos `.sig` (ej: `instalador.exe.sig`).
+---
 
-1. Abrir cada archivo `.sig` con un editor de texto.
-2. Copiar **todo el contenido** del archivo.
-3. Pegarlo en el campo `signature` correspondiente en `installers/latest.json`.
+## 🐧 Linux (AppImage / Deb)
+
+```bash
+bun x @tauri-apps/cli signer sign --private-key src-tauri/keys/private.key installers/equinox-erp_0.1.4_amd64.AppImage
+```
+
+---
+
+## � Publicar Actualización (`latest.json`)
+
+Edita `installers/latest.json` con las nuevas versiones y firmas:
 
 ```json
 {
+  "version": "0.1.4",
+  "notes": "Notas de la versión...",
+  "pub_date": "2026-02-07T18:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "PEGAR_CONTENIDO_SIG_AQUI",
-      "url": "..."
+      "signature": "PEGAR_CONTENIDO_DE_SIG_AQUI",
+      "url": "https://github.com/.../Equinox_ERP_0.1.4_x64_Setup.exe"
     },
-    "linux-x86_64": {
-      "signature": "PEGAR_CONTENIDO_SIG_AQUI",
-      "url": "..."
+    "windows-aarch64": {
+      "signature": "PEGAR_CONTENIDO_DE_SIG_AQUI",
+      "url": "https://github.com/.../Equinox_ERP_0.1.4_ARM64_Setup.exe"
     }
+    // Agregar darwin-x86_64, darwin-aarch64, linux-x86_64 igual
   }
 }
 ```
 
-## ⚠️ Solución de Problemas
-
-- **Error: password for that key**: Indica que no se proporcionó la contraseña o es incorrecta. Asegúrate de configurar `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
-- **Error: update server.e field... / incorrect updater public key**: Verifica que la clave pública en `tauri.conf.json` coincida con la pareja de tu `private.key`.
+Sube los archivos `.exe` y `latest.json` a GitHub Releases.
