@@ -54,25 +54,25 @@ jobs:
         env:
           RAW_SECRET: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
-          # 1. Verificar encabezado (diagnóstico)
-          if ! echo "$RAW_SECRET" | head -n1 | grep -q "untrusted comment"; then
-             echo "❌ La clave no comienza con 'untrusted comment'"
+          echo "Creando archivo de clave privada desde secreto..."
+          # Escribir el secreto en un archivo temporal
+          echo "$RAW_SECRET" > private.key
+
+          # Validar contenido del archivo
+          if ! grep -q "untrusted comment" private.key; then
+             echo "❌ Error: El archivo generado no contiene 'untrusted comment'"
+             cat private.key
              exit 1
           fi
 
-          # 2. Sanitizar: Eliminar \r (Windows terminators) y espacios extra
-          CLEAN_KEY=$(echo "$RAW_SECRET" | tr -d '\r')
+          # Obtener ruta absoluta
+          KEY_PATH=$(pwd)/private.key
+          echo "Clave guardada en: $KEY_PATH"
 
-          # 3. Exportar usando GITHUB_ENV para persistencia correcta de multilinea
-          # Usamos un delimitador aleatorio para seguridad
-          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-          {
-            echo "TAURI_SIGNING_PRIVATE_KEY<<$EOF"
-            echo "$CLEAN_KEY"
-            echo "$EOF"
-          } >> $GITHUB_ENV
+          # Pasar la RUTA DEL ARCHIVO en lugar del contenido
+          echo "TAURI_SIGNING_PRIVATE_KEY=$KEY_PATH" >> $GITHUB_ENV
 
-          echo "✅ Clave sanitizada y exportada a GITHUB_ENV"
+          echo "✅ Configuración lista: TAURI_SIGNING_PRIVATE_KEY apunta a archivo"
 
       - name: Build and Sign
         env:
